@@ -1,0 +1,464 @@
+{
+  "name": "Expense Tracker Telegram Bot",
+  "nodes": [
+    {
+      "parameters": {
+        "updates": [
+          "message"
+        ],
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.telegramTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        -1040,
+        -640
+      ],
+      "id": "cd3d9b8e-df0a-4daa-b81d-e2ee3671ef34",
+      "name": "Telegram Trigger",
+      "webhookId": "2e961b11-b7f6-46b5-97c9-b2e60c528873",
+      "credentials": {
+        "telegramApi": {
+          "id": "KL4WLRuE8Tr0wNzU",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.message.text }}",
+                    "rightValue": "",
+                    "operator": {
+                      "type": "string",
+                      "operation": "exists",
+                      "singleValue": true
+                    },
+                    "id": "49f6abe1-35fb-4f70-b7b3-f87f14adbd26"
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Text "
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "a2c82bb7-d9ef-4481-abf5-cc88ea4b5081",
+                    "leftValue": "={{ $json.message.voice.file_id }}",
+                    "rightValue": "",
+                    "operator": {
+                      "type": "string",
+                      "operation": "exists",
+                      "singleValue": true
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Voice "
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.4,
+      "position": [
+        -768,
+        -640
+      ],
+      "id": "910aeaf0-8d30-4f02-8a3b-3745dc98e22a",
+      "name": "Switch"
+    },
+    {
+      "parameters": {
+        "resource": "file",
+        "fileId": "={{ $json.message.voice.file_id }}",
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        -544,
+        -496
+      ],
+      "id": "f3109a2d-329a-4506-84df-1fe324d86750",
+      "name": "Get a file",
+      "webhookId": "3444dedb-9070-40a1-a5be-9a3e06a8b17e",
+      "credentials": {
+        "telegramApi": {
+          "id": "KL4WLRuE8Tr0wNzU",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "audio",
+        "operation": "transcribe",
+        "options": {
+          "language": "ar"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 2.1,
+      "position": [
+        -336,
+        -496
+      ],
+      "id": "f31c8aaf-7f05-49b4-8575-25dce1fc61e6",
+      "name": "Transcribe a recording",
+      "credentials": {
+        "openAiApi": {
+          "id": "YFynewUzVZBBo1Kw",
+          "name": "OpenAi account 6"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "f218fac4-de1b-4822-9c5f-9501de871879",
+              "name": "Text",
+              "value": "={{ $json.message.text }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -544,
+        -752
+      ],
+      "id": "2faf3ffa-0035-455d-ac92-32ea7cf60809",
+      "name": "Edit Fields"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json.Text }} ?? {{ $json.text }}",
+        "options": {
+          "systemMessage": "=Your role is a specialized Financial Data Extraction Agent for n8n workflows.\nYou must process user messages about expenses and convert them into a structured JSON format.\n\n### Constraints:\n1. Output MUST be ONLY a valid JSON object.\n2. No conversational text or markdown code blocks (no ```json).\n3. If information is missing, use \"null\".\n4. Identify the merchant, price, item, and date.\n\n### Today's Date: \n{{ $now }}\n\n### Required JSON Structure:\n{\n  \"expense_details\": {\n    \"merchant\": \"string (the place)\",\n    \"price\": number,\n    \"item\": \"string\",\n    \"date\": \"YYYY-MM-DD\",\n    \"currency\": \"string (default to EGP if not specified)\"\n  },\n  \"original_query\": \"string (the user input)\"\n}\n\n### Example Input:\n\"اشتريت بيتزا من بيتزا هات النهاردة ب ٤٠٠ جنية\"\n\n### Example Output:\n{\n  \"expense_details\": {\n    \"merchant\": \"Pizza Hut\",\n    \"price\": 400,\n    \"item\": \"Pizza\",\n    \"date\": \"2026-01-25\",\n    \"currency\": \"EGP\"\n  },\n  \"original_query\": \"اشتريت بيتزا من بيتزا هات النهاردة ب ٤٠٠ جنية\"\n}\n\nToday's date is: {{ $today.format('DD-MM-YYYY') }}"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        -32,
+        -752
+      ],
+      "id": "c834baf6-a64c-41c0-9220-f8160495d166",
+      "name": "AI Agent"
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "value": "gpt-4o",
+          "mode": "list",
+          "cachedResultName": "gpt-4o"
+        },
+        "builtInTools": {},
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.3,
+      "position": [
+        -48,
+        -512
+      ],
+      "id": "889357aa-7fb7-4c27-a299-7240d9da08d5",
+      "name": "OpenAI Chat Model",
+      "credentials": {
+        "openAiApi": {
+          "id": "YFynewUzVZBBo1Kw",
+          "name": "OpenAi account 6"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "1WTXOQ71tmz6rOR1M4rilxDjyljD8iDlQKOcK0eDYo-Q",
+          "mode": "list",
+          "cachedResultName": "Telegram Bot 2 ",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1WTXOQ71tmz6rOR1M4rilxDjyljD8iDlQKOcK0eDYo-Q/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "الورقة1",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1WTXOQ71tmz6rOR1M4rilxDjyljD8iDlQKOcK0eDYo-Q/edit#gid=0"
+        },
+        "columns": {
+          "mappingMode": "autoMapInputData",
+          "value": {},
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "price",
+              "displayName": "price",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "item",
+              "displayName": "item",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "place",
+              "displayName": "place",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "date",
+              "displayName": "date",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        752,
+        -752
+      ],
+      "id": "b31556cd-06d2-4db9-ab57-d8be566e0d77",
+      "name": "Append row in sheet",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "b9vb6ibAagrnEp7c",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const today = new Date();\nconst yesterday = new Date();\nyesterday.setDate(today.getDate() - 1);\n\nconst formatDate = (date) => {\n  const day = String(date.getDate()).padStart(2, '0');\n  const month = String(date.getMonth() + 1).padStart(2, '0');\n  const year = date.getFullYear();\n  return `${day}-${month}-${year}`;\n};\n\nreturn {\n  today: formatDate(today),\n  yesterday: formatDate(yesterday)\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        320,
+        -752
+      ],
+      "id": "a9c5be54-e04a-4f2a-91b6-00e77c88e504",
+      "name": "Code in JavaScript"
+    },
+    {
+      "parameters": {
+        "jsCode": "\nconst rawText = $node[\"AI Agent\"].json.output;\n\n// تحويل النص (String) إلى JSON Object حقيقي\nconst data = JSON.parse(rawText);\n\n// توزيع البيانات لتخرج كأعمدة منفصلة في n8n\nreturn {\n  price: data.expense_details.price,\n  item: data.expense_details.item,\n  place: data.expense_details.merchant,\n  date: data.expense_details.date\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        544,
+        -752
+      ],
+      "id": "d3c35bed-fb39-46f6-8399-998f496d4054",
+      "name": "Code in JavaScript1"
+    },
+    {
+      "parameters": {
+        "sessionIdType": "customKey",
+        "sessionKey": "={{ $('Telegram Trigger').item.json.message.chat.id }}",
+        "contextWindowLength": 15
+      },
+      "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+      "typeVersion": 1.3,
+      "position": [
+        144,
+        -448
+      ],
+      "id": "de7ff981-e7b3-4a56-ab96-889543481d73",
+      "name": "Simple Memory"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Telegram Trigger": {
+      "main": [
+        [
+          {
+            "node": "Switch",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Switch": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Get a file",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get a file": {
+      "main": [
+        [
+          {
+            "node": "Transcribe a recording",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Fields": {
+      "main": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Transcribe a recording": {
+      "main": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript1": {
+      "main": [
+        [
+          {
+            "node": "Append row in sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Simple Memory": {
+      "ai_memory": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "availableInMCP": false,
+    "timeSavedMode": "fixed",
+    "callerPolicy": "workflowsFromSameOwner"
+  },
+  "versionId": "4fe118b6-7012-4fe7-adfc-18ebe6364d76",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "1d52e26502ab362c0b60f91c6d37756d0d545fbe1c12904239c10acad5a587bd"
+  },
+  "id": "Q_ySZ4PMwVsqsfRwTPxCT",
+  "tags": []
+}
