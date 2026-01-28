@@ -1,6 +1,6 @@
 # 🤖 AI Telegram Expense Tracker (n8n Powered)
 
-An **AI-powered expense tracking system** that works through **Telegram** and is fully automated using **n8n workflows**, **OpenAI**, and **Google Sheets**.
+**AI-powered expense tracking system** that works through **Telegram** and is fully automated using **n8n workflows**, **OpenAI**, and **Google Sheets**.
 
 Track your expenses by simply sending a **text** or **voice message** — the system understands natural language and logs everything automatically.
 
